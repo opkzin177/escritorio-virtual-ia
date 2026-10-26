@@ -59,7 +59,7 @@ h2{font-family:var(--display);font-size:13px;letter-spacing:.14em;text-transform
 <header>
   <div>
     <h1>Meu escritório virtual<br>tem <em>agentes</em> de IA</h1>
-    <div class="sub">Clique em um agente · atribua tarefas reais com APIs gratuitas (Groq, Gemini, OpenRouter)</div>
+    <div class="sub">Clique em um agente · atribua tarefas reais (Mistral já conectada)</div>
   </div>
   <div class="chips" id="chips"></div>
 </header>
@@ -76,6 +76,7 @@ h2{font-family:var(--display);font-size:13px;letter-spacing:.14em;text-transform
       <h2>Configurar APIs Gratuitas</h2>
       <p style="font-size:12px;color:var(--muted);margin:0 0 8px">Cole suas chaves (ficam só no seu navegador). Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--accent)">Groq</a>, <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent)">Gemini</a>, <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent)">OpenRouter</a></p>
       <select id="provider">
+        <option value="mistral">Mistral (conectada)</option>
         <option value="groq">Groq (rápido, modelos open)</option>
         <option value="gemini">Gemini (Google AI Studio)</option>
         <option value="openrouter">OpenRouter (modelos :free)</option>
@@ -348,7 +349,16 @@ async function callAI(prompt, provider, apiKey){
   responseEl.textContent = 'Processando com ' + provider + '...';
   try{
     let url, body, headers = {'Content-Type':'application/json'};
-    if(provider === 'groq'){
+    if(provider === 'mistral'){
+      url = 'https://api.mistral.ai/v1/chat/completions';
+      headers['Authorization'] = 'Bearer ' + apiKey;
+      body = JSON.stringify({
+        model: 'mistral-small-latest',
+        messages: [{role:'user', content: prompt}],
+        max_tokens: 400,
+        temperature: 0.7
+      });
+    } else if(provider === 'groq'){
       url = 'https://api.groq.com/openai/v1/chat/completions';
       headers['Authorization'] = 'Bearer ' + apiKey;
       body = JSON.stringify({
