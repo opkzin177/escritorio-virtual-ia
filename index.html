@@ -1,0 +1,412 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Escritório Virtual IA</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root{
+  color-scheme: dark;
+  --bg:#0c0c0f;
+  --panel:#16161b;
+  --line:#26262e;
+  --fg:#ecedf0;
+  --muted:#8b8d98;
+  --accent:#ff2d78;
+  --display:'Rajdhani','Arial Narrow',sans-serif;
+  --body:'IBM Plex Sans',system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--body);font-size:14px;
+  padding-block:20px 28px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+header{display:flex;flex-wrap:wrap;gap:12px;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
+h1{font-family:var(--display);font-weight:700;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+h1 em{font-style:normal;color:var(--accent)}
+.sub{color:var(--muted);font-size:12px;margin-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border:1px solid var(--line);background:var(--panel);font-size:12px;border-radius:99px}
+.chip i,.dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.layout{display:grid;gap:14px;grid-template-columns:minmax(0,1fr) 340px;align-items:start}
+@media (max-width:860px){.layout{grid-template-columns:minmax(0,1fr)}}
+.stage{border:1px solid var(--line);background:var(--panel);overflow-x:auto}
+.stage canvas{display:block;width:100%;min-width:620px;aspect-ratio:704/448;cursor:pointer}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.box{background:var(--panel);border:1px solid var(--line);padding:12px;min-width:0}
+h2{font-family:var(--display);font-size:13px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 8px;font-weight:600}
+.row{display:flex;align-items:center;gap:8px;width:100%;padding:7px 8px;border:1px solid transparent;background:transparent;color:var(--fg);font:inherit;text-align:left;cursor:pointer}
+.row:hover{background:#1d1d24}
+.row[aria-pressed="true"]{border-color:var(--accent);background:#1d1d24}
+.row .n{font-weight:600;min-width:62px}
+.row .s{color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.card h3{margin:0;font-family:var(--display);font-size:24px;display:flex;align-items:center;gap:8px}
+.badge{font-size:11px;font-weight:600;background:#f5a53b;color:#1a1204;padding:1px 6px;border-radius:3px;font-family:var(--body)}
+.st{display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:500}
+.task{color:var(--muted);margin-top:4px;line-height:1.4}
+.timer{margin-top:8px;font-variant-numeric:tabular-nums;color:var(--accent);font-weight:600}
+.note{color:var(--muted);font-size:12px;margin-top:14px;max-width:70ch}
+.settings{margin-top:8px}
+.settings input, .settings select, .settings textarea, .settings button{
+  width:100%;margin-bottom:6px;padding:6px 8px;background:#1d1d24;border:1px solid var(--line);color:var(--fg);border-radius:4px;font:inherit
+}
+.settings button{background:var(--accent);color:#fff;border:none;cursor:pointer;font-weight:600}
+.settings button:hover{opacity:.9}
+.response{white-space:pre-wrap;background:#1d1d24;padding:8px;border-radius:4px;margin-top:6px;max-height:200px;overflow:auto;font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Meu escritório virtual<br>tem <em>agentes</em> de IA</h1>
+    <div class="sub">Clique em um agente · atribua tarefas reais com APIs gratuitas (Groq, Gemini, OpenRouter)</div>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<div class="layout">
+  <div class="stage"><canvas id="cv" aria-label="Mapa do escritório com agentes de IA"></canvas></div>
+  <div class="side">
+    <div class="box">
+      <h2>Agentes de IA</h2>
+      <div id="list"></div>
+    </div>
+    <div class="box card" id="card" aria-live="polite"></div>
+    <div class="box settings">
+      <h2>Configurar APIs Gratuitas</h2>
+      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">Cole suas chaves (ficam só no seu navegador). Obtenha em: <a href="https://console.groq.com" target="_blank" style="color:var(--accent)">Groq</a>, <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:var(--accent)">Gemini</a>, <a href="https://openrouter.ai/keys" target="_blank" style="color:var(--accent)">OpenRouter</a></p>
+      <select id="provider">
+        <option value="groq">Groq (rápido, modelos open)</option>
+        <option value="gemini">Gemini (Google AI Studio)</option>
+        <option value="openrouter">OpenRouter (modelos :free)</option>
+      </select>
+      <input type="password" id="apikey" placeholder="Cole a API Key aqui" autocomplete="off">
+      <button id="saveKey">Salvar chave neste navegador</button>
+      <textarea id="taskInput" placeholder="Digite uma tarefa para o agente selecionado (ex: Resuma este texto...)" rows="3"></textarea>
+      <button id="assignTask">Atribuir tarefa ao agente</button>
+      <div class="response" id="aiResponse">Resposta da IA aparecerá aqui...</div>
+    </div>
+  </div>
+</div>
+<p class="note">⚠️ Chaves ficam apenas no localStorage. Para produção use backend (Netlify Functions). Estados mudam sozinhos. Integração real com APIs gratuitas.</p>
+
+<script>
+(function(){
+var W=704,H=448;
+var ST={
+  trab:{t:'Trabalhando',c:'#3ddc84'},
+  expl:{t:'Explorando pastas',c:'#27c4e8'},
+  esp:{t:'Esperando',c:'#5b8cff'},
+  apr:{t:'Aprovar permissão',c:'#f5b73b'},
+  oc:{t:'Ocioso',c:'#9aa5b1'},
+  desc:{t:'Descanso',c:'#b57bff'},
+  mesa:{t:'Na mesa',c:'#9be37a'}
+};
+var KEYS=Object.keys(ST);
+var TASKS=['Resumindo relatório de vendas','Revisando contrato do cliente','Montando planilha de custos','Conferindo estoque','Escrevendo resposta ao cliente','Atualizando o painel'];
+var DETAIL={
+  esp:'Aguardando a parte 1 ficar pronta',
+  apr:'Pedido de permissão para rodar um comando',
+  expl:'Abrindo pastas de documentos',
+  oc:'Sem tarefa na fila',
+  desc:'Pausa programada',
+  mesa:'Na mesa, pronto para novas tarefas'
+};
+var desks=[[40,60],[130,60],[220,60],[310,60],[70,160],[160,160],[250,160]];
+var idleSpots=[[60,350],[140,385],[225,340],[300,385],[345,345],[40,395]];
+var exploreSpots=[[470,75],[540,75],[610,75],[660,135],[525,150],[585,150]];
+var restSpots=[[480,305],[520,305],[550,360],[665,360],[470,390],[515,400]];
+var people=[
+  ['Rafaela','#7a3b1d','#e0ac8a','#3b6fd4','trab'],
+  ['Iara','#2b1b12','#c98a66','#d4503b','trab'],
+  ['Fabiana','#1a1210','#8a5a3c','#2f2f38','expl'],
+  ['Theo','#3a2a6a','#b57a58','#2fa86b','esp'],
+  ['Hugo','#c8322e','#e8b898','#2f2f38','oc'],
+  ['Luana','#e0b040','#d9a27c','#8a4fd0','apr'],
+  ['Flávia','#1c1c24','#f0c8a8','#d4a02f','mesa']
+];
+function rand(a){return a[Math.floor(Math.random()*a.length)]}
+function seatOf(i){var d=desks[i];return [d[0]+40,d[1]+52]}
+var agents=people.map(function(p,i){
+  var a={n:p[0],hair:p[1],skin:p[2],shirt:p[3],state:p[4],i:i,seat:seatOf(i),since:Date.now(),
+    task:rand(TASKS),path:[],walk:0,jx:(Math.random()-.5)*14,jy:(Math.random()-.5)*8, response:''};
+  var t=target(a);a.x=t[0];a.y=t[1];return a;
+});
+function target(a){
+  var s=a.state;
+  if(s==='expl')return exploreSpots[a.i%exploreSpots.length];
+  if(s==='oc')return idleSpots[a.i%idleSpots.length];
+  if(s==='desc')return restSpots[a.i%restSpots.length];
+  return a.seat;
+}
+function setState(a,s){
+  a.state=s;a.since=Date.now();a.task=rand(TASKS);
+  var t=target(a);
+  var tx=t[0]+(t===a.seat?0:a.jx),ty=t[1]+(t===a.seat?0:a.jy);
+  var side=function(x){return x<416?0:1};
+  a.path=[];
+  if(side(a.x)!==side(tx))a.path.push([424,190]);
+  a.path.push([tx,ty]);
+}
+var reduce=window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function schedule(a){a.next=Date.now()+7000+Math.random()*9000}
+agents.forEach(schedule);
+
+var cv=document.getElementById('cv'),cx=cv.getContext('2d');
+var sc=1;
+function fit(){
+  var dpr=window.devicePixelRatio||1,cw=cv.clientWidth;
+  sc=cw/W;cv.width=Math.round(cw*dpr);cv.height=Math.round(cw*H/W*dpr);
+  cx.setTransform(sc*dpr,0,0,sc*dpr,0,0);
+}
+function rr(x,y,w,h,r,fill){
+  cx.fillStyle=fill;cx.beginPath();
+  if(cx.roundRect)cx.roundRect(x,y,w,h,r);else cx.rect(x,y,w,h);
+  cx.fill();
+}
+function R(x,y,w,h,c){cx.fillStyle=c;cx.fillRect(x,y,w,h)}
+
+function plant(x,y){
+  R(x-5,y,10,8,'#9a5b36');
+  cx.fillStyle='#2f8f46';cx.beginPath();cx.arc(x,y-4,9,0,7);cx.fill();
+  cx.fillStyle='#3fae5a';cx.beginPath();cx.arc(x-3,y-8,6,0,7);cx.fill();
+  cx.beginPath();cx.arc(x+4,y-7,5,0,7);cx.fill();
+}
+function drawMap(){
+  R(0,0,416,448,'#e9edf1');
+  R(0,288,416,160,'#e2e7ed');
+  cx.strokeStyle='#d6dce3';cx.lineWidth=1;
+  for(var x=0;x<416;x+=32){cx.beginPath();cx.moveTo(x,0);cx.lineTo(x,448);cx.stroke()}
+  for(var y=0;y<448;y+=32){cx.beginPath();cx.moveTo(0,y);cx.lineTo(416,y);cx.stroke()}
+  R(420,0,284,448,'#c9a06a');
+  cx.strokeStyle='#b78d58';
+  for(var y2=0;y2<448;y2+=16){cx.beginPath();cx.moveTo(420,y2);cx.lineTo(704,y2);cx.stroke()}
+  R(448,236,230,190,'#3f7f46');R(454,242,218,178,'#4f9a56');
+  R(416,0,6,96,'#3a4350');R(416,288,6,160,'#3a4350');
+  for(var sx=432;sx<690;sx+=42){
+    R(sx,0,38,38,'#6b4423');R(sx+2,2,34,34,'#3c2614');
+    var cols=['#d94f4f','#4f8ad9','#e0b83a','#4fb36a','#a05ad9'];
+    for(var r=0;r<2;r++)for(var b=0;b<6;b++)R(sx+4+b*5,4+r*16,4,13,cols[(b+r+sx)%5]);
+  }
+  for(var f=0;f<2;f++){R(662,64+f*34,34,30,'#8d99a6');R(666,68+f*34,26,10,'#aab5c0');R(676,82+f*34,6,3,'#4a5560')}
+  R(500,95,120,34,'#8a5a30');R(503,98,114,28,'#a87442');
+  R(515,102,22,16,'#f4efe2');R(545,104,30,12,'#e86a4f');R(585,101,18,18,'#4f8ad9');
+  R(466,246,122,16,'#3a5fa8');R(462,258,130,30,'#4a74c4');R(462,258,10,30,'#3a5fa8');R(582,258,10,30,'#3a5fa8');
+  R(556,330,100,56,'#1f6aa5');R(558,332,96,52,'#2a82c4');R(603,332,2,52,'#fff');R(553,386,4,10,'#444');R(653,386,4,10,'#444');
+  cx.fillStyle='#fff';cx.beginPath();cx.arc(630,356,2.5,0,7);cx.fill();
+  [['#d94f4f',470,388],['#4f8ad9',512,402],['#e0b83a',488,366]].forEach(function(p){cx.fillStyle=p[0];cx.beginPath();cx.ellipse(p[1],p[2],15,11,0,0,7);cx.fill()});
+  R(366,300,16,30,'#cfd8e0');R(369,288,10,14,'#7fc4e8');R(366,330,16,4,'#9aa6b0');
+  plant(20,300);plant(396,430);plant(20,432);plant(398,26);plant(690,300);plant(436,430);
+  desks.forEach(function(d,i){
+    var x=d[0],y=d[1];
+    R(x,y,80,30,'#8a5a30');R(x+2,y+2,76,24,'#b98450');
+    R(x+28,y+4,24,14,'#1d2430');R(x+30,y+6,20,10,'#5fd0ff');R(x+34,y+20,12,3,'#d9dde2');
+  });
+}
+function chair(a){R(a.x-7,a.y-9,14,9,'#2d3340');R(a.x-7,a.y-13,14,4,'#3c4352')}
+function person(a,moving,seated,t){
+  var x=Math.round(a.x),y=Math.round(a.y);
+  cx.fillStyle='rgba(0,0,0,.18)';cx.beginPath();cx.ellipse(x,y+1,7,2.6,0,0,7);cx.fill();
+  if(seated)chair(a);
+  var bob=moving?Math.sin(t/90+a.i)*1.4:0;
+  if(!seated){
+    var l=moving?Math.round(Math.sin(t/90+a.i)*2):0;
+    R(x-4,y-7,3,7-l,'#2b2f3a');R(x+1,y-7,3,7+l,'#2b2f3a');
+  }
+  R(x-5,y-14+bob,10,8,a.shirt);
+  R(x-7,y-13+bob,2,6,a.skin);R(x+5,y-13+bob,2,6,a.skin);
+  R(x-4,y-21+bob,8,8,a.skin);
+  R(x-5,y-23+bob,10,4,a.hair);R(x-5,y-21+bob,2,5,a.hair);R(x+3,y-21+bob,2,5,a.hair);
+  R(x-2,y-17+bob,1.6,1.8,'#1b1b1f');R(x+1,y-17+bob,1.6,1.8,'#1b1b1f');
+}
+function pill(txt,cxp,cyp,bg,fg,size){
+  cx.font='600 '+size+'px IBM Plex Sans, system-ui, sans-serif';
+  var w=cx.measureText(txt).width+10;
+  rr(cxp-w/2,cyp-8,w,15,7,bg);
+  cx.fillStyle=fg;cx.textAlign='center';cx.textBaseline='middle';cx.fillText(txt,cxp,cyp);
+}
+function sign(a){
+  var d=desks[a.i],x=d[0]+4,y=d[1]-14;
+  rr(x,y,72,13,2,'#f5c542');
+  cx.fillStyle='#3a2a00';cx.beginPath();cx.moveTo(x+8,y+2);cx.lineTo(x+13,y+11);cx.lineTo(x+3,y+11);cx.closePath();cx.fill();
+  cx.fillStyle='#f5c542';cx.fillRect(x+7.4,y+5,1.4,3);
+  cx.fillStyle='#3a2a00';cx.font='600 7px IBM Plex Sans, sans-serif';cx.textAlign='left';cx.textBaseline='middle';
+  cx.fillText('Aprovar permissão',x+16,y+7);
+}
+var selected=4;
+var last=performance.now();
+function frame(now){
+  var dt=Math.min(.05,(now-last)/1000);last=now;
+  var nowMs=Date.now();
+  agents.forEach(function(a){
+    if(nowMs>a.next){
+      var opts=KEYS.filter(function(k){return k!==a.state});
+      setState(a,rand(opts));schedule(a);
+      dirty=true;
+    }
+    a.moving=false;
+    if(a.path.length){
+      var p=a.path[0],dx=p[0]-a.x,dy=p[1]-a.y,d=Math.hypot(dx,dy),sp=reduce?9999:70*dt;
+      if(d<=sp){a.x=p[0];a.y=p[1];a.path.shift()}
+      else{a.x+=dx/d*sp;a.y+=dy/d*sp;a.moving=true}
+    }
+  });
+  cx.clearRect(0,0,W,H);
+  drawMap();
+  var order=agents.slice().sort(function(a,b){return a.y-b.y});
+  order.forEach(function(a){
+    var seated=!a.moving&&!a.path.length&&Math.abs(a.x-a.seat[0])<1&&Math.abs(a.y-a.seat[1])<1;
+    if(seated&&a.state==='apr')sign(a);
+    person(a,a.moving,seated,now);
+  });
+  order.forEach(function(a){
+    var s=ST[a.state];
+    if(a.i===selected){cx.strokeStyle='#ff2d78';cx.lineWidth=2;cx.beginPath();cx.ellipse(a.x,a.y-10,13,18,0,0,7);cx.stroke()}
+    pill(a.n,a.x,a.y+14,'rgba(18,18,24,.88)','#fff',9);
+    cx.fillStyle=s.c;cx.beginPath();cx.arc(a.x-cx.measureText(a.n).width/2-3,a.y+14,2.2,0,7);cx.fill();
+    if(a.state!=='trab'&&a.state!=='apr'){
+      var tx=a.state==='expl'?'Explorando pastas':a.state==='desc'?'Descanso':a.state==='esp'?'esperando…':a.state==='oc'?'ocioso?':'na mesa';
+      pill(tx,a.x,a.y-32,'rgba(255,255,255,.95)','#1b1b22',8.5);
+    }
+  });
+  if(nowMs-lastUi>500||dirty){updateUi();lastUi=nowMs;dirty=false}
+  requestAnimationFrame(frame);
+}
+
+var dirty=true,lastUi=0;
+var chipsEl=document.getElementById('chips'),listEl=document.getElementById('list'),cardEl=document.getElementById('card');
+var rows=agents.map(function(a){
+  var b=document.createElement('button');b.type='button';b.className='row';
+  b.innerHTML='<span class="dot"></span><span class="n"></span><span class="s"></span>';
+  b.children[1].textContent=a.n;
+  b.addEventListener('click',function(){selected=a.i;dirty=true;updateCard();});
+  listEl.appendChild(b);return b;
+});
+function fmt(ms){var s=Math.floor(ms/1000),m=Math.floor(s/60);return String(m).padStart(2,'0')+':'+String(s%60).padStart(2,'0')}
+function updateUi(){
+  var counts={};
+  agents.forEach(function(a,i){
+    counts[a.state]=(counts[a.state]||0)+1;
+    var s=ST[a.state],r=rows[i];
+    r.children[0].style.background=s.c;r.children[2].textContent=s.t;
+    r.setAttribute('aria-pressed',i===selected?'true':'false');
+  });
+  chipsEl.innerHTML='';
+  KEYS.forEach(function(k){
+    if(!counts[k])return;
+    var c=document.createElement('span');c.className='chip';
+    c.innerHTML='<i style="background:'+ST[k].c+'"></i>';
+    c.appendChild(document.createTextNode(counts[k]+' '+ST[k].t.toLowerCase()));
+    chipsEl.appendChild(c);
+  });
+  updateCard();
+}
+function updateCard(){
+  var a=agents[selected],s=ST[a.state];
+  var line=a.state==='trab'?a.task:DETAIL[a.state];
+  cardEl.innerHTML='<h3></h3><div class="st"><span class="dot" style="background:'+s.c+'"></span><span></span></div><div class="task"></div><div class="timer"></div>';
+  cardEl.querySelector('h3').innerHTML='<span></span><span class="badge">A</span>';
+  cardEl.querySelector('h3 span').textContent=a.n;
+  cardEl.querySelector('.st span:last-child').textContent=s.t;
+  cardEl.querySelector('.task').textContent=line + (a.response ? '\n\nResposta: ' + a.response.substring(0,180) + (a.response.length>180?'...':'') : '');
+  cardEl.querySelector('.timer').textContent='Neste estado há '+fmt(Date.now()-a.since);
+}
+cv.addEventListener('click',function(e){
+  var r=cv.getBoundingClientRect(),mx=(e.clientX-r.left)/sc,my=(e.clientY-r.top)/sc,best=-1,bd=30;
+  agents.forEach(function(a,i){var d=Math.hypot(mx-a.x,my-(a.y-10));if(d<bd){bd=d;best=i}});
+  if(best>=0){selected=best;dirty=true}
+});
+
+// Settings / AI integration
+var providerSel = document.getElementById('provider');
+var keyInput = document.getElementById('apikey');
+var saveBtn = document.getElementById('saveKey');
+var taskInput = document.getElementById('taskInput');
+var assignBtn = document.getElementById('assignTask');
+var responseEl = document.getElementById('aiResponse');
+
+function loadKeys(){
+  var p = localStorage.getItem('ai_provider') || 'groq';
+  var k = localStorage.getItem('ai_key_'+p) || '';
+  providerSel.value = p;
+  keyInput.value = k;
+}
+providerSel.addEventListener('change', function(){
+  localStorage.setItem('ai_provider', providerSel.value);
+  loadKeys();
+});
+saveBtn.addEventListener('click', function(){
+  var p = providerSel.value;
+  localStorage.setItem('ai_key_'+p, keyInput.value.trim());
+  localStorage.setItem('ai_provider', p);
+  alert('Chave salva para ' + p + '!');
+});
+loadKeys();
+
+async function callAI(prompt, provider, apiKey){
+  if(!apiKey) throw new Error('Configure a API Key primeiro');
+  responseEl.textContent = 'Processando com ' + provider + '...';
+  try{
+    let url, body, headers = {'Content-Type':'application/json'};
+    if(provider === 'groq'){
+      url = 'https://api.groq.com/openai/v1/chat/completions';
+      headers['Authorization'] = 'Bearer ' + apiKey;
+      body = JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: [{role:'user', content: prompt}],
+        max_tokens: 300
+      });
+    } else if(provider === 'gemini'){
+      url = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=' + apiKey;
+      body = JSON.stringify({
+        contents: [{parts:[{text: prompt}]}]
+      });
+    } else {
+      url = 'https://openrouter.ai/api/v1/chat/completions';
+      headers['Authorization'] = 'Bearer ' + apiKey;
+      headers['HTTP-Referer'] = window.location.href;
+      body = JSON.stringify({
+        model: 'openrouter/auto:free',
+        messages: [{role:'user', content: prompt}],
+        max_tokens: 300
+      });
+    }
+    var res = await fetch(url, {method:'POST', headers, body});
+    if(!res.ok) throw new Error('HTTP ' + res.status + ' ' + await res.text());
+    var data = await res.json();
+    var text = '';
+    if(provider === 'gemini'){
+      text = data.candidates?.[0]?.content?.parts?.[0]?.text || JSON.stringify(data);
+    } else {
+      text = data.choices?.[0]?.message?.content || JSON.stringify(data);
+    }
+    return text;
+  } catch(e){
+    return 'Erro: ' + e.message + '\n(Dica: algumas APIs bloqueiam chamadas do browser por CORS. Use backend para produção.)';
+  }
+}
+
+assignBtn.addEventListener('click', async function(){
+  var prompt = taskInput.value.trim();
+  if(!prompt){ alert('Digite uma tarefa'); return; }
+  var p = providerSel.value;
+  var key = localStorage.getItem('ai_key_'+p) || keyInput.value.trim();
+  var a = agents[selected];
+  a.state = 'trab';
+  a.task = prompt.substring(0,60) + (prompt.length>60?'...':'');
+  a.since = Date.now();
+  setState(a, 'trab');
+  dirty = true;
+  var reply = await callAI(prompt, p, key);
+  a.response = reply;
+  responseEl.textContent = reply;
+  dirty = true;
+});
+
+fit();
+window.addEventListener('resize',fit);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
